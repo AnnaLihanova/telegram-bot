@@ -24,10 +24,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
     private Logger logger = LoggerFactory.getLogger(TelegramBotUpdatesListener.class);
     private static final String START_COMMAND = "/start";
-    private static final String HELLO_TEXT = "Hello world!";
-//    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-//    private static final String REGEX_BOT_MESSAGE = "([\d\.\:\s]{16})(\s)([\W+]+)";
-
+    private static final String HELLO_TEXT = "Hello!";
 
     private final TelegramBot telegramBot;
     private final NotificationTaskRepository notificationTaskRepository;
@@ -48,12 +45,14 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         updates.forEach(update -> {
             logger.info("Processing update: {}", update);
             // Process your updates here
+            //Получаем текст сообщения из чата и отправляем ответ
             Message message = update.message();
             if (message.text().equals(START_COMMAND)) {
                 logger.info(START_COMMAND + "received");
                 sendMessage(message.chat().id(), HELLO_TEXT);
             }
 
+            // Разбиваем пришедшее сообщение на дату и текст
             String text = update.message().text();
             Long chatId = update.message().chat().id();
             Matcher matcher = Pattern.compile("([\\d\\.\\:\\s]{16})(\\s)([\\W+]+)").matcher(text);
@@ -64,12 +63,19 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
             String notificationDataTimeStr = matcher.group(1);
             String notificationText = matcher.group(3);
 
+            //Парсинг строки в LocalDateTime
             LocalDateTime notificationDataTime = LocalDateTime
                     .parse(notificationDataTimeStr, DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
+
+            //Создаем уведомление
             NotificationTask notificationTask = new NotificationTask(chatId, notificationText, notificationDataTime);
+
+            //Добавляем уведомление в БД
             notificationTask = notificationTaskRepository.save(notificationTask);
+
+            //Отправляем уведомление
             sendMessage(chatId, "Напоминание! " + notificationTask.getMessage()
-                    + " Я отправлю Вам " + notificationTask.getDateTime().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")));
+                    + " Я отправлю Вам уведомление в " + notificationTask.getDateTime().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")));
         });
         return UpdatesListener.CONFIRMED_UPDATES_ALL;
     }
